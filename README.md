@@ -1,3 +1,28 @@
+Most of the code is from the openpi repo, but I have made some changes to the training script to allow for plotting the action scatter plot.
+
+Some other changes I made:
+- in config.py, I added a new config for the xarm single arm set up and dual arm set up.
+  - I also added the corresponding policy for the xarm single arm and dual arm set 
+- in model.py, 
+  - I add  pose: bool = False (Whether to use pose or joint angle as state)
+- in data_loader.py, I concat the actions from the left and right arm into a single action array. (if both left and right actions exist)
+- 
+        def __iter__(self):
+            print("Starting data loader iteration...")
+            for batch in self._data_loader:
+                print("Processing batch...")
+                # Only combine actions if both left and right actions exist
+                if "action_left" in batch and "action_right" in batch:
+                    actions = np.concatenate([batch["action_left"], batch["action_right"]], axis=-1)
+                    actions = _transforms.pad_to_dim(actions, 32)
+                    batch_with_actions = {**batch, "actions": actions}
+                else:
+                    # Use existing actions if they exist, otherwise use an empty batch
+                    batch_with_actions = {**batch, "actions": batch["action"]}
+                print("Batch processed, yielding...")
+                yield _model.Observation.from_dict(batch_with_actions), batch_with_actions["actions"]
+
+
 # openpi
 
 openpi holds open-source models and packages for robotics, published by the [Physical Intelligence team](https://www.physicalintelligence.company/).
