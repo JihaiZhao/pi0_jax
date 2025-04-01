@@ -1,0 +1,33 @@
+nodes:
+  # Add DataReader to get obs buffer
+  - id: obs_buffer_reader
+    custom:
+      source: dora-rs/nodes/data_reader
+      inputs: []
+      outputs:
+        - obs_buffer
+      envs:
+        SHARED_PATH: /tmp/pi0_obs_buffer
+        READ_MODE: shared_memory
+  # ================Pi0 Policy Node===============
+  - id: policy
+    custom:
+      source: ../../scripts/dora_policy_node.py  # Relative to openpi root
+      inputs:
+        obs_dict: obs_buffer_reader/obs_buffer  # External input
+      outputs:
+        - action_pred  # Will be consumed by your xarm control graph
+      envs:
+        CKPT_PATH: ${CHECKPOINT_PATH}  # Set via environment variable
+        CONFIG_NAME: pi0_base  # Or your specific config name
+
+  # Add a DataWriter node to share the actions
+  - id: action_writer
+    custom:
+      source: dora-rs/nodes/data_writer
+      inputs:
+        data: policy/action_pred
+      outputs: []
+      envs:
+        SHARED_PATH: /tmp/pi0_actions  # Shared location for communication
+        WRITE_MODE: shared_memory  # Use shared memory for fast IPC
