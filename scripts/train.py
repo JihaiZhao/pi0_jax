@@ -25,6 +25,7 @@ import openpi.training.optimizer as _optimizer
 import openpi.training.sharding as sharding
 import openpi.training.utils as training_utils
 import openpi.training.weight_loaders as _weight_loaders
+import openpi.transforms as _transforms
 
 import os
 import matplotlib.pyplot as plt
@@ -282,6 +283,17 @@ def main(config: _config.TrainConfig):
     data_iter = iter(data_loader)
     batch = next(data_iter)
     logging.info(f"Initialized data loader:\n{training_utils.array_tree_to_info(batch)}")
+
+    # Print batch value ranges
+    def print_value_range(x):
+        if hasattr(x, 'shape'):
+            return {"min": float(jnp.min(x)), "max": float(jnp.max(x)), "mean": float(jnp.mean(x)), "shape": x.shape}
+        return None
+    
+    logging.info("Batch value ranges:")
+    observation, actions = batch
+    logging.info(f"Observation value ranges: {jax.tree_map(print_value_range, observation)}")
+    logging.info(f"Actions value ranges: {jax.tree_map(print_value_range, actions)}")
 
     train_state, train_state_sharding = init_train_state(config, init_rng, mesh, resume=resuming)
     jax.block_until_ready(train_state)

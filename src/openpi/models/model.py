@@ -271,9 +271,6 @@ class BaseModel(nnx.Module, abc.ABC):
     @abc.abstractmethod
     def sample_actions(self, rng: at.KeyArrayLike, observation: Observation) -> Actions: ...
 
-    @abc.abstractmethod
-    def predict_action(self, rng: at.KeyArrayLike, observation: Observation, state: at.Float[at.Array, "*b s"]) -> Actions: ...
-
 def restore_params(
     params_path: pathlib.Path | str,
     *,

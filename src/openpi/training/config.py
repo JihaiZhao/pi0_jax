@@ -12,6 +12,7 @@ import etils.epath as epath
 import flax.nnx as nnx
 from typing_extensions import override
 import tyro
+import numpy as np
 
 import openpi.models.model as _model
 import openpi.models.pi0 as pi0
@@ -335,6 +336,7 @@ class LeRobotXARMDualDataConfig(DataConfigFactory):
     """Config for xarm dataset."""
     default_prompt: str | None = None
     action_sequence_keys: Sequence[str] = ("action_left", "action_right")
+    # action_sequence_keys: Sequence[str] = ("actions",)
     max_episodes: int | None = None
 
     @override
@@ -366,6 +368,11 @@ class LeRobotXARMDualDataConfig(DataConfigFactory):
         data_transforms = _transforms.Group(
             inputs=[xarm_dual_policy.XarmInputs(action_dim=model_config.action_dim, model_type=model_config.model_type, pose=model_config.pose)],
             outputs=[xarm_dual_policy.XarmOutputs()],
+        )
+        delta_action_mask = _transforms.make_bool_mask(9, -1, 9, -1)
+        data_transforms = data_transforms.push(
+            inputs=[_transforms.DeltaActions(delta_action_mask)],
+            outputs=[_transforms.AbsoluteActions(delta_action_mask)],
         )
 
         # Model transforms for tokenizing prompts etc.
@@ -765,7 +772,7 @@ _CONFIGS = [
     #
     TrainConfig(
         name="pi0_xarm_dual",
-        model=pi0.Pi0Config(pose=True),
+        model=pi0.Pi0Config(pose=False),
         data=LeRobotXARMDualDataConfig(
             repo_id="pour_1000",
             assets=AssetsConfig(
@@ -779,6 +786,7 @@ _CONFIGS = [
                 filter_fn=lambda x: True,  # Custom filter function
             ),
         ),
+        batch_size=16,
         keep_period=3000,
         weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
         num_train_steps=30_000,
@@ -788,7 +796,7 @@ _CONFIGS = [
     #
     TrainConfig(
         name="pi0_xarm_single",
-        model=pi0.Pi0Config(),
+        model=pi0.Pi0Config(pose=False),
         data=LeRobotXARMSingleDataConfig(
             repo_id="cof_800_new",
             assets=AssetsConfig(
@@ -802,7 +810,7 @@ _CONFIGS = [
                 filter_fn=lambda x: True,  # Custom filter function
             ),
         ),
-        # num_batches=10,
+        batch_size=16,
         weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
         num_train_steps=30_000,
     ),

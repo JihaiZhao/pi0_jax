@@ -41,37 +41,6 @@ class DataLoader(Protocol[T_co]):
 class TransformedDataset(Dataset[T_co]):
     def __init__(self, dataset: Dataset, transforms: Sequence[_transforms.DataTransformFn]):
         self._dataset = dataset
-        # print("Dataset length:", len(dataset))
-        # print("\nInitializing TransformedDataset:")
-        # print("Dataset type:", type(dataset))
-        
-        # # Print norm stats keys that are missing from the dataset
-        # if hasattr(dataset, 'hf_dataset'):
-        #     dataset_keys = set(dataset.hf_dataset.column_names)
-        #     print("\nDataset available keys:", dataset_keys)
-        #     if hasattr(transforms[-1], '_stats'):  # Assuming the last transform is Normalize
-        #         norm_stats_keys = set(transforms[-1]._stats.keys())
-        #         missing_keys = norm_stats_keys - dataset_keys
-        #         if missing_keys:
-        #             print("\nWARNING: Following keys in norm_stats are missing from dataset:")
-        #             for key in missing_keys:
-        #                 print(f"  - {key}")
-        
-        # # Try to access first item with better error handling
-        # try:
-        #     data = self._dataset[0]
-        #     print("\nSuccessfully accessed first item")
-        #     print("Raw data keys:", data.keys())
-        # except Exception as e:
-        #     print("\nError accessing first item:", str(e))
-        #     print("Error type:", type(e))
-        #     if hasattr(dataset, 'hf_dataset'):
-        #         print("\nTrying to access raw HuggingFace dataset:")
-        #         try:
-        #             raw_item = dataset.hf_dataset[0]
-        #             print("Raw HF dataset first item keys:", raw_item.keys())
-        #         except Exception as e2:
-        #             print("Error accessing raw HF dataset:", str(e2))
         
         self._transform = _transforms.compose(transforms)
 
@@ -169,26 +138,6 @@ def transform_dataset(dataset: Dataset, data_config: _config.DataConfig, *, skip
         ],
     )
 
-    # # Add debug print after transforms with detailed info
-    # print("\nTransforms applied:")
-    # print("Repack transforms:")
-    # for t in data_config.repack_transforms.inputs:
-    #     print(f"  - {t}")
-    #     if hasattr(t, 'structure'):
-    #         print(f"    Structure: {t.structure}")
-    
-    # print("\nData transforms:")
-    # for t in data_config.data_transforms.inputs:
-    #     print(f"  - {t}")
-    #     if hasattr(t, 'action_dim'):
-    #         print(f"    Action dim: {t.action_dim}")
-    
-    # print("\nModel transforms:")
-    # for t in data_config.model_transforms.inputs:
-    #     print(f"  - {t}")
-    #     if hasattr(t, 'height'):
-    #         print(f"    Size: {t.height}x{t.width}")
-
     return transformed
 
 
@@ -216,22 +165,6 @@ def create_data_loader(
             execute in the main process.
     """
     data_config = config.data.create(config.assets_dirs, config.model)
-    
-    # print("\n=== Debug Dataset Loading ===")
-    # print("Norm stats keys:", data_config.norm_stats.keys())
-    # print("Action sequence keys:", data_config.action_sequence_keys)
-    # print("Local files only:", data_config.local_files_only)
-    
-    # # Debug print transform configurations
-    # print("\nTransform Configurations:")
-    # print("Repack transforms:", data_config.repack_transforms.inputs)
-    # print("Data transforms:", data_config.data_transforms.inputs)
-    # print("Model transforms:", data_config.model_transforms.inputs)
-    
-    # print("\nRepack Transform Structure:")
-    # for transform in data_config.repack_transforms.inputs:
-    #     if hasattr(transform, 'structure'):
-    #         print("Structure mapping:", transform.structure)
     
     dataset = create_dataset(data_config, config.model)
     
@@ -264,17 +197,20 @@ def create_data_loader(
         def __iter__(self):
             print("Starting data loader iteration...")
             for batch in self._data_loader:
-                print("Processing batch...")
-                # Only combine actions if both left and right actions exist
-                if "action_left" in batch and "action_right" in batch:
-                    actions = np.concatenate([batch["action_left"], batch["action_right"]], axis=-1)
-                    actions = _transforms.pad_to_dim(actions, 32)
-                    batch_with_actions = {**batch, "actions": actions}
-                else:
-                    # Use existing actions if they exist, otherwise use an empty batch
-                    batch_with_actions = {**batch, "actions": batch["action"]}
-                print("Batch processed, yielding...")
-                yield _model.Observation.from_dict(batch_with_actions), batch_with_actions["actions"]
+                # print("Processing batch...")
+                # # Only combine actions if both left and right actions exist
+                # if "action_left" in batch and "action_right" in batch:
+                #     actions = np.concatenate([batch["action_left"], batch["action_right"]], axis=-1)
+                #     actions = _transforms.pad_to_dim(actions, 32)
+                #     batch_with_actions = {**batch, "actions": actions}      
+                # else:
+                #     # Use existing actions if they exist, otherwise use an empty batch
+                #     batch_with_actions = {**batch, "actions": batch["action"]}
+                # print("Batch processed, yielding...")
+                # actions = batch["actions"]
+                # actions = _transforms.pad_to_dim(actions, 32)
+                # batch_with_actions = {**batch, "actions": actions}
+                yield _model.Observation.from_dict(batch), batch["actions"]
 
 
     return DataLoaderImpl(data_config, data_loader)

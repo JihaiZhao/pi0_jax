@@ -106,26 +106,25 @@ class XarmInputs(transforms.DataTransformFn):
         if "prompt" in data:
             inputs["prompt"] = data["prompt"]
 
-        if "action_left" in data:
+        if "action_left" in data and "action_right" in data:
             action_left = np.asarray(data["action_left"])
-            # print(f"Original action_left shape: {action_left.shape}")
-            # action_left = transforms.pad_to_dim(action_left, self.action_dim)
-            # print(f"Padded action_left shape: {action_left.shape}")
-            inputs["action_left"] = action_left
-
-        if "action_right" in data:
             action_right = np.asarray(data["action_right"])
-            # print(f"Original action_right shape: {action_right.shape}")
-            # action_right = transforms.pad_to_dim(action_right, self.action_dim)
-            # print(f"Padded action_right shape: {action_right.shape}")
-            inputs["action_right"] = action_right
-        
-        if "action" in data:
-            action = np.asarray(data["action"])
-            # print(f"Original action shape: {action.shape}")
-            # action = transforms.pad_to_dim(action, self.action_dim)
-            # print(f"Padded action shape: {action.shape}")
-            inputs["action"] = action
+            actions = np.concatenate([action_left, action_right], axis=-1)
+            inputs["actions"] = actions
+
+        # if "actions" in data:
+        #     print(f"actions: {data['actions'].shape}")
+        #     actions = np.asarray(data["actions"])
+        #     data["actions"] = transforms.pad_to_dim(actions, self.action_dim)
+
+        # if "action_left" in data:
+        #     action_left = np.asarray(data["action_left"])
+        #     inputs["action_left"] = action_left
+
+        # if "action_right" in data:
+        #     action_right = np.asarray(data["action_right"])
+        #     inputs["action_right"] = action_right
+
 
         return inputs
 

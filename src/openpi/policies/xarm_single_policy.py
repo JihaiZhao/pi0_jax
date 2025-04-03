@@ -53,13 +53,22 @@ class XarmInputs(transforms.DataTransformFn):
         # We only mask padding for pi0 model, not pi0-FAST
         mask_padding = self.model_type == _model.ModelType.PI0
 
-        # Get state from raw inputs
-        state_components = [
-            data["observation_states_joint_angle"],
-            data["observation_states_gripper_position"]
-        ]
-        state = np.concatenate(state_components)
-        state = transforms.pad_to_dim(state, self.action_dim)
+        if self.pose:
+            # Get state from raw inputs
+            state_components = [
+                data["observation_states_ee_pose"],
+                data["observation_states_gripper_position"]
+            ]
+            state = np.concatenate(state_components)
+            state = transforms.pad_to_dim(state, self.action_dim)
+        else:
+            # Get state from raw inputs
+            state_components = [
+                data["observation_states_joint_angle"],
+                data["observation_states_gripper_position"]
+            ]
+            state = np.concatenate(state_components)
+            state = transforms.pad_to_dim(state, self.action_dim)
         
         # Process images
         base_image = _parse_image(data["observation_images_d455"])
@@ -89,7 +98,7 @@ class XarmInputs(transforms.DataTransformFn):
         if "action" in data:
             action = np.asarray(data["action"])
             action = transforms.pad_to_dim(action, self.action_dim)
-            inputs["action"] = action
+            inputs["actions"] = action
 
         # Add debug print for output
         print("Output keys:", inputs.keys())
