@@ -369,7 +369,8 @@ class LeRobotXARMDualDataConfig(DataConfigFactory):
             inputs=[xarm_dual_policy.XarmInputs(action_dim=model_config.action_dim, model_type=model_config.model_type, pose=model_config.pose)],
             outputs=[xarm_dual_policy.XarmOutputs()],
         )
-        delta_action_mask = _transforms.make_bool_mask(9, -1, 9, -1)
+        # in here action left and right are not concatenated yet
+        delta_action_mask = _transforms.make_bool_mask(9, -1)
         data_transforms = data_transforms.push(
             inputs=[_transforms.DeltaActions(delta_action_mask)],
             outputs=[_transforms.AbsoluteActions(delta_action_mask)],
@@ -796,7 +797,7 @@ _CONFIGS = [
     #
     TrainConfig(
         name="pi0_xarm_single",
-        model=pi0.Pi0Config(pose=False),
+        model=pi0.Pi0Config(),
         data=LeRobotXARMSingleDataConfig(
             repo_id="cof_800_new",
             assets=AssetsConfig(

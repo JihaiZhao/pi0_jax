@@ -197,20 +197,21 @@ def create_data_loader(
         def __iter__(self):
             print("Starting data loader iteration...")
             for batch in self._data_loader:
-                # print("Processing batch...")
-                # # Only combine actions if both left and right actions exist
-                # if "action_left" in batch and "action_right" in batch:
-                #     actions = np.concatenate([batch["action_left"], batch["action_right"]], axis=-1)
-                #     actions = _transforms.pad_to_dim(actions, 32)
-                #     batch_with_actions = {**batch, "actions": actions}      
-                # else:
-                #     # Use existing actions if they exist, otherwise use an empty batch
-                #     batch_with_actions = {**batch, "actions": batch["action"]}
-                # print("Batch processed, yielding...")
+                print("Processing batch...")
+                # Only combine actions if both left and right actions exist
+                if "action_left" in batch and "action_right" in batch:
+                    actions = np.concatenate([batch["action_left"], batch["action_right"]], axis=-1)
+                    actions = _transforms.pad_to_dim(actions, 32)
+                    batch_with_actions = {**batch, "actions": actions}      
+                else:
+                    # Use existing actions if they exist, otherwise use an empty batch
+                    batch_with_actions = {**batch, "actions": batch["action"]}
+                print("Batch processed, yielding...")
+
                 # actions = batch["actions"]
                 # actions = _transforms.pad_to_dim(actions, 32)
                 # batch_with_actions = {**batch, "actions": actions}
-                yield _model.Observation.from_dict(batch), batch["actions"]
+                yield _model.Observation.from_dict(batch_with_actions), batch_with_actions["actions"]
 
 
     return DataLoaderImpl(data_config, data_loader)
