@@ -369,7 +369,7 @@ class LeRobotXARMDualDataConfig(DataConfigFactory):
             inputs=[xarm_dual_policy.XarmInputs(action_dim=model_config.action_dim, model_type=model_config.model_type, pose=model_config.pose)],
             outputs=[xarm_dual_policy.XarmOutputs()],
         )
-        delta_action_mask = _transforms.make_bool_mask(9, -1, 9, -1)
+        delta_action_mask = _transforms.make_bool_mask(9, -1)
         data_transforms = data_transforms.push(
             inputs=[_transforms.DeltaActions(delta_action_mask)],
             outputs=[_transforms.AbsoluteActions(delta_action_mask)],
@@ -772,7 +772,7 @@ _CONFIGS = [
     #
     TrainConfig(
         name="pi0_xarm_dual",
-        model=pi0.Pi0Config(pose=False),
+        model=pi0.Pi0Config(),
         data=LeRobotXARMDualDataConfig(
             repo_id="pour_1000",
             assets=AssetsConfig(
@@ -792,11 +792,35 @@ _CONFIGS = [
         num_train_steps=30_000,
     ),
     #
+    # Fine-tuning XArm Dual configs - Fast.
+    #
+    TrainConfig(
+        name="pi0_xarm_dual_fast",
+        model=pi0_fast.Pi0FASTConfig(action_dim=20, action_horizon=10, max_token_len=180),
+        data=LeRobotXARMDualDataConfig(
+            repo_id="pour_1000",
+            assets=AssetsConfig(
+                assets_dir="/scratch/wty/data/",
+                asset_id="pour_1000",
+            ),
+            default_prompt=None,
+            base_config=DataConfig(
+                local_files_only=True,
+                prompt_from_task=True,
+                filter_fn=lambda x: True,  # Custom filter function
+            ),
+        ),
+        batch_size=16,
+        keep_period=3000,
+        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_base/params"),
+        num_train_steps=30_000,
+    ),
+    #
     # Fine-tuning XArm Single configs.
     #
     TrainConfig(
         name="pi0_xarm_single",
-        model=pi0.Pi0Config(pose=False),
+        model=pi0.Pi0Config(),
         data=LeRobotXARMSingleDataConfig(
             repo_id="cof_800_new",
             assets=AssetsConfig(
