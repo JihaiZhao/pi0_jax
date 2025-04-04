@@ -2,8 +2,8 @@
 Author: JihaiZhao jihai518@gmail.com
 Date: 2025-03-27 18:23:51
 LastEditors: JihaiZhao jihai518@gmail.com
-LastEditTime: 2025-03-28 16:18:45
-FilePath: /openpi/src/openpi/policies/xarm_dual_policy.py
+LastEditTime: 2025-04-04 16:39:58
+FilePath: /pi0_jax/src/openpi/policies/xarm_dual_policy.py
 Description: 
 '''
 import dataclasses
@@ -21,6 +21,8 @@ def make_xarm_example() -> dict:
         "observation_images_left_wrist": np.random.randint(256, size=(3, 224, 224), dtype=np.uint8),
         "observation_images_right_wrist": np.random.randint(256, size=(3, 224, 224), dtype=np.uint8),
 
+        "observation_states_ee_pose_left": np.random.rand(9),
+        "observation_states_ee_pose_right": np.random.rand(9),
         "observation_states_joint_angle_left": np.random.rand(7),        # joint angles
         "observation_states_joint_angle_right": np.random.rand(7),       # joint angles   
         "observation_states_gripper_position_left": np.random.rand(1),    # gripper position
