@@ -203,12 +203,30 @@ class DeltaActions(DataTransformFn):
     mask: Sequence[bool] | None
 
     def __call__(self, data: DataDict) -> DataDict:
+        # Handle dual arm case
+        if "action_left" in data or "action_right" in data:
+            state, action_left, action_right = data["state"], data["action_left"], data["action_right"]
+            print(f"state: {state.shape}, action_left: {action_left.shape}, action_right: {action_right.shape}")
+            mask = np.asarray(self.mask)
+            print(f"mask shape: {mask.shape}")
+            dims = mask.shape[-1]
+            print(f"dims: {dims}")
+            action_left[..., :dims] -= np.expand_dims(np.where(mask, state[..., :dims], 0), axis=-2)
+            action_right[..., :dims] -= np.expand_dims(np.where(mask, state[..., :dims], 0), axis=-2)
+            data["action_left"] = action_left
+            data["action_right"] = action_right
+
+            return data
+
         if "actions" not in data or self.mask is None:
             return data
 
         state, actions = data["state"], data["actions"]
+        print(f"state: {state.shape}, actions: {actions.shape}")
         mask = np.asarray(self.mask)
+        print(f"mask shape: {mask.shape}")
         dims = mask.shape[-1]
+        print(f"dims: {dims}")
         actions[..., :dims] -= np.expand_dims(np.where(mask, state[..., :dims], 0), axis=-2)
         data["actions"] = actions
 

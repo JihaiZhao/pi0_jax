@@ -369,6 +369,8 @@ class LeRobotXARMDualDataConfig(DataConfigFactory):
             inputs=[xarm_dual_policy.XarmInputs(action_dim=model_config.action_dim, model_type=model_config.model_type, pose=model_config.pose)],
             outputs=[xarm_dual_policy.XarmOutputs()],
         )
+        # in here action left and right are not concatenated yet
+        delta_action_mask = _transforms.make_bool_mask(9, -1)
         delta_action_mask = _transforms.make_bool_mask(9, -1)
         data_transforms = data_transforms.push(
             inputs=[_transforms.DeltaActions(delta_action_mask)],
