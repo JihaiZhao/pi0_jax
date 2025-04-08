@@ -294,6 +294,13 @@ def main(config: _config.TrainConfig):
     observation, actions = batch
     logging.info(f"Observation value ranges: {jax.tree_map(print_value_range, observation)}")
     logging.info(f"Actions value ranges: {jax.tree_map(print_value_range, actions)}")
+    
+    # Print exact state values
+    if hasattr(observation, 'state'):
+        state_array = jax.device_get(observation.state)
+        logging.info(f"Exact state values (first example in batch): {state_array[0].tolist()}")
+    else:
+        logging.info("No state found in observation")
 
     train_state, train_state_sharding = init_train_state(config, init_rng, mesh, resume=resuming)
     jax.block_until_ready(train_state)
@@ -338,6 +345,11 @@ def main(config: _config.TrainConfig):
                     print("start sampling")
                     model = nnx.merge(train_state.model_def, train_state.params)
                     observation, actions = batch
+                    # Print exact state values
+                    if hasattr(observation, 'state'):
+                        state_array = jax.device_get(observation.state)
+                        logging.info(f"Exact state values (first example in batch): {state_array[0].tolist()}")
+                    
                     # Take just first item from batch
                     plot_observation = jax.tree_map(lambda x: x[0:1], observation)
                     plot_actions = jax.tree_map(lambda x: x[0:1], actions)
@@ -348,6 +360,8 @@ def main(config: _config.TrainConfig):
                         num_steps=1
                     )
                     print(f"Predicted actions shape: {pred_actions.shape}")
+                    print(f"Predicted actions: {pred_actions[0]}")
+
                     gt_actions_np = jax.device_get(plot_actions)
                     pred_actions_np = jax.device_get(pred_actions)
                     plot_action_scatter(gt_actions_np, pred_actions_np, step, plot_dir)

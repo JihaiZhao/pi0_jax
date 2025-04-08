@@ -127,6 +127,9 @@ def transform_dataset(dataset: Dataset, data_config: _config.DataConfig, *, skip
                 "Make sure to run `scripts/compute_norm_stats.py --config-name=<your-config>`."
             )
         norm_stats = data_config.norm_stats
+    
+    for key in norm_stats:
+        print(f"Normalization stats for {key}: {norm_stats[key]}")
 
     transformed = TransformedDataset(
         dataset,
@@ -170,6 +173,13 @@ def create_data_loader(
     
     try:
         dataset = transform_dataset(dataset, data_config, skip_norm_stats=skip_norm_stats)
+        print("dataset keys: ", dataset[0].keys())
+        print("dataset[0]['state'] max", dataset[0]['state'].max())
+        print("dataset[0]['state'] min", dataset[0]['state'].min())
+        print("dataset[0]['image'] ", dataset[0]['image'].keys())
+        print("dataset[0]['image']['base_0_rgb'] ", dataset[0]['image']['base_0_rgb'].max())
+        print("dataset[0]['image']['left_wrist_0_rgb'] ", dataset[0]['image']['left_wrist_0_rgb'].max())
+        print("dataset[0]['image']['right_wrist_0_rgb'] ", dataset[0]['image']['right_wrist_0_rgb'].max())
         print("\nTransform successful")
     except Exception as e:
         print("\nError during transform:", str(e))
@@ -198,19 +208,34 @@ def create_data_loader(
             print("Starting data loader iteration...")
             for batch in self._data_loader:
                 print("Processing batch...")
+                # Create a copy of the batch for modification
+                batch_with_actions = batch.copy()
+                
+                # Get model action_dim from the config
+                model_action_dim = 32  # Default value for Pi0Config - correct for pi0_xarm_dual
+                
                 # Only combine actions if both left and right actions exist
                 if "action_left" in batch and "action_right" in batch:
                     actions = np.concatenate([batch["action_left"], batch["action_right"]], axis=-1)
-                    actions = _transforms.pad_to_dim(actions, 32)
-                    batch_with_actions = {**batch, "actions": actions}      
+                    actions = _transforms.pad_to_dim(actions, model_action_dim)
+                    batch_with_actions["actions"] = actions
                 else:
-                    # Use existing actions if they exist, otherwise use an empty batch
-                    batch_with_actions = {**batch, "actions": batch["action"]}
+                    # Use existing actions if they exist
+                    if "action" in batch:
+                        batch_with_actions["actions"] = batch["action"]
+                
+                # # Combine state components if they exist
+                # if "observation_states_ee_pose_left" in batch and "observation_states_ee_pose_right" in batch:
+                #     state = np.concatenate([batch["observation_states_ee_pose_left"], 
+                #                             batch["observation_states_gripper_position_left"],
+                #                             batch["observation_states_ee_pose_right"],
+                #                             batch["observation_states_gripper_position_right"]], axis=-1)
+                #     state = _transforms.pad_to_dim(state, model_action_dim)
+                #     batch_with_actions["state"] = state
+                
                 print("Batch processed, yielding...")
 
-                # actions = batch["actions"]
-                # actions = _transforms.pad_to_dim(actions, 32)
-                # batch_with_actions = {**batch, "actions": actions}
+                # Image will be normalized to [-1, 1] in the model pipeline
                 yield _model.Observation.from_dict(batch_with_actions), batch_with_actions["actions"]
 
 

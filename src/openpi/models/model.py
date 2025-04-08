@@ -213,8 +213,8 @@ class BaseModelConfig(abc.ABC):
     action_horizon: int
     # Tokenized prompt maximum length.
     max_token_len: int
-    # Whether to use pose or joint angle as state
-    pose: bool = False
+    # Whether to use pose or joint angle to train the model
+    pose: bool = True
 
     @property
     @abc.abstractmethod

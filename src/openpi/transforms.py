@@ -135,7 +135,10 @@ class Normalize(DataTransformFn):
         )
 
     def _normalize(self, x, stats: NormStats):
+        # Original normalization is Z-score normalization.
         return (x - stats.mean) / (stats.std + 1e-6)
+        # New normalization is min-max normalization. Normalize to [-1, 1].
+        # return 2.0 * (x - stats.min) / (stats.max - stats.min + 1e-6) - 1.0
 
     def _normalize_quantile(self, x, stats: NormStats):
         assert stats.q01 is not None
@@ -166,7 +169,10 @@ class Unnormalize(DataTransformFn):
         )
 
     def _unnormalize(self, x, stats: NormStats):
+        # Original unnormalization is Z-score unnormalization.
         return x * (stats.std + 1e-6) + stats.mean
+        # New unnormalization is min-max unnormalization. Unnormalize from [-1, 1] to [min, max].
+        # return (x + 1.0) / 2.0 * (stats.max - stats.min + 1e-6) + stats.min
 
     def _unnormalize_quantile(self, x, stats: NormStats):
         assert stats.q01 is not None
@@ -243,6 +249,19 @@ class AbsoluteActions(DataTransformFn):
     mask: Sequence[bool] | None
 
     def __call__(self, data: DataDict) -> DataDict:
+        if "action_left" in data or "action_right" in data:
+            state, action_left, action_right = data["state"], data["action_left"], data["action_right"]
+            print(f"state: {state.shape}, action_left: {action_left.shape}, action_right: {action_right.shape}")
+            mask = np.asarray(self.mask)
+            print(f"mask shape: {mask.shape}")
+            dims = mask.shape[-1]
+            action_left[..., :dims] += np.expand_dims(np.where(mask, state[..., :dims], 0), axis=-2)
+            action_right[..., :dims] += np.expand_dims(np.where(mask, state[..., :dims], 0), axis=-2)
+            data["action_left"] = action_left
+            data["action_right"] = action_right
+
+            return data
+        
         if "actions" not in data or self.mask is None:
             return data
 

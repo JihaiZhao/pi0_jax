@@ -10,6 +10,8 @@ import pydantic
 class NormStats:
     mean: numpydantic.NDArray
     std: numpydantic.NDArray
+    # max: numpydantic.NDArray
+    # min: numpydantic.NDArray
     q01: numpydantic.NDArray | None = None  # 1st quantile
     q99: numpydantic.NDArray | None = None  # 99th quantile
 

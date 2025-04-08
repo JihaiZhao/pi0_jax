@@ -48,6 +48,7 @@ class AssetsConfig:
     AssetsConfig(
         assets_dir="s3://openpi-assets/checkpoints/pi0_base/assets",
         asset_id="trossen",
+        pose=True,
     )
     ```
     """
@@ -59,6 +60,9 @@ class AssetsConfig:
     # Asset id. If not provided, the repo id will be used. This allows users to reference assets that describe
     # different robot platforms.
     asset_id: str | None = None
+
+    # If true, will use pose as action space for training. If false, will use joint angles.
+    pose: bool | None = True
 
 
 @dataclasses.dataclass(frozen=True)
@@ -98,6 +102,8 @@ class DataConfig:
     shuffle_seed: int | None = None
     filter_fn: Any | None = None
 
+    # If true, will use pose as action space for training. If false, will use joint angles.
+    pose: bool | None = True
 
 class GroupFactory(Protocol):
     def __call__(self, model_config: _model.BaseModelConfig) -> _transforms.Group:
@@ -158,14 +164,15 @@ class DataConfigFactory(abc.ABC):
     def create_base_config(self, assets_dirs: pathlib.Path) -> DataConfig:
         repo_id = self.repo_id if self.repo_id is not tyro.MISSING else None
         asset_id = self.assets.asset_id or repo_id
+        pose = self.assets.pose
         return dataclasses.replace(
             self.base_config or DataConfig(),
             repo_id=repo_id,
             asset_id=asset_id,
-            norm_stats=self._load_norm_stats(epath.Path(self.assets.assets_dir or assets_dirs), asset_id),
+            norm_stats=self._load_norm_stats(epath.Path(self.assets.assets_dir or assets_dirs), asset_id, pose),
         )
 
-    def _load_norm_stats(self, assets_dir: epath.Path, asset_id: str | None) -> dict[str, _transforms.NormStats] | None:
+    def _load_norm_stats(self, assets_dir: epath.Path, asset_id: str | None, pose: bool) -> dict[str, _transforms.NormStats] | None:
         if asset_id is None:
             return None
         try:
@@ -391,11 +398,14 @@ class LeRobotXARMDualDataConfig(DataConfigFactory):
             prompt_from_task=base_config.prompt_from_task,
         )
 
-    def _load_norm_stats(self, assets_dir: epath.Path, asset_id: str | None) -> dict[str, _transforms.NormStats] | None:
+    def _load_norm_stats(self, assets_dir: epath.Path, asset_id: str | None, pose: bool) -> dict[str, _transforms.NormStats] | None:
         if asset_id is None:
             return None
         try:
-            data_assets_dir = str(assets_dir / asset_id / "meta")
+            if pose:
+                data_assets_dir = str(assets_dir / asset_id / "pose")
+            else:
+                data_assets_dir = str(assets_dir / asset_id / "joint")
             norm_stats = _normalize.load(_download.maybe_download(data_assets_dir))
             logging.info(f"Loaded norm stats from {data_assets_dir}")
             return norm_stats
@@ -774,12 +784,13 @@ _CONFIGS = [
     #
     TrainConfig(
         name="pi0_xarm_dual",
-        model=pi0.Pi0Config(),
+        model=pi0.Pi0Config(pose=True),
         data=LeRobotXARMDualDataConfig(
             repo_id="pour_1000",
             assets=AssetsConfig(
                 assets_dir="/scratch/jihai/",
                 asset_id="pour_1000",
+                pose=True,
             ),
             default_prompt=None,
             base_config=DataConfig(
@@ -788,8 +799,8 @@ _CONFIGS = [
                 filter_fn=lambda x: True,  # Custom filter function
             ),
         ),
-        batch_size=16,
         keep_period=3000,
+        plot_interval=300,
         weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
         num_train_steps=30_000,
     ),
@@ -802,7 +813,7 @@ _CONFIGS = [
         data=LeRobotXARMDualDataConfig(
             repo_id="pour_1000",
             assets=AssetsConfig(
-                assets_dir="/scratch/wty/data/",
+                assets_dir="/scratch/jihai",
                 asset_id="pour_1000",
             ),
             default_prompt=None,
