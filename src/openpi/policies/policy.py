@@ -42,32 +42,34 @@ class Policy(BasePolicy):
         # Make a copy since transformations may modify the inputs in place.
         inputs = jax.tree.map(lambda x: x, obs)
         
-        # Debug: Log input before transformation
-        print("Input before transformation")
-        for key, value in inputs.items():
-            if isinstance(value, (np.ndarray, jnp.ndarray)):
-                print(f"  {key}: shape={value.shape}, min={np.min(value)}, max={np.max(value)}")
-            # Check for nested image dictionaries
-            elif isinstance(value, dict) and key == "image":
-                print(f"  {key}: (dictionary with {len(value)} images)")
-                for img_key, img_val in value.items():
-                    if isinstance(img_val, (np.ndarray, jnp.ndarray)):
-                        print(f"    {img_key}: shape={img_val.shape}, min={np.min(img_val)}, max={np.max(img_val)}")
+        # # Debug: Log input before transformation
+        # print("Input before transformation")
+        # for key, value in inputs.items():
+        #     if isinstance(value, (np.ndarray, jnp.ndarray)):
+        #         print(f"  {key}: shape={value.shape}, min={np.min(value)}, max={np.max(value)}")
+        #     # Check for nested image dictionaries
+        #     elif isinstance(value, dict) and key == "image":
+        #         print(f"  {key}: (dictionary with {len(value)} images)")
+        #         for img_key, img_val in value.items():
+        #             if isinstance(img_val, (np.ndarray, jnp.ndarray)):
+        #                 print(f"    {img_key}: shape={img_val.shape}, min={np.min(img_val)}, max={np.max(img_val)}")
         
         # Apply input transforms
         inputs = self._input_transform(inputs)
         
-        # Debug: Log input after transformation
-        print("Input after transformation")
-        for key, value in inputs.items():
-            if isinstance(value, (np.ndarray, jnp.ndarray)):
-                print(f"  {key}: shape={value.shape}, min={np.min(value)}, max={np.max(value)}")
-            # Check for nested image dictionaries
-            elif isinstance(value, dict) and key == "image":
-                print(f"  {key}: (dictionary with {len(value)} images)")
-                for img_key, img_val in value.items():
-                    if isinstance(img_val, (np.ndarray, jnp.ndarray)):
-                        print(f"    {img_key}: shape={img_val.shape}, min={np.min(img_val)}, max={np.max(img_val)}")
+        # # Debug: Log input after transformation
+        # print("Input after transformation")
+        # for key, value in inputs.items():
+        #     if isinstance(value, (np.ndarray, jnp.ndarray)):
+        #         print(f"  {key}: shape={value.shape}, min={np.min(value)}, max={np.max(value)}")
+        #     elif key == "state":
+        #         print(f"  {key}: value={value[:20]}")
+        #     # Check for nested image dictionaries
+        #     elif isinstance(value, dict) and key == "image":
+        #         print(f"  {key}: (dictionary with {len(value)} images)")
+        #         for img_key, img_val in value.items():
+        #             if isinstance(img_val, (np.ndarray, jnp.ndarray)):
+        #                 print(f"    {img_key}: shape={img_val.shape}, min={np.min(img_val)}, max={np.max(img_val)}")
         
         # Make a batch and convert to jax.Array.
         inputs = jax.tree.map(lambda x: jnp.asarray(x)[np.newaxis, ...], inputs)
@@ -80,14 +82,14 @@ class Policy(BasePolicy):
         }
         outputs["actions"] = outputs["actions"][..., :20]
 
-        # Print output statistics
-        print("Output statistics:")
-        for key, value in outputs.items():
-            if isinstance(value, (np.ndarray, jnp.ndarray)):
-                print(f"  {key}:")
-                print(f"    shape: {value.shape}")
-                print(f"    min: {np.min(value)}")
-                print(f"    max: {np.max(value)}")
+        # # Print output statistics
+        # print("Output statistics:")
+        # for key, value in outputs.items():
+        #     if isinstance(value, (np.ndarray, jnp.ndarray)):
+        #         print(f"  {key}:")
+        #         print(f"    shape: {value.shape}")
+        #         print(f"    min: {np.min(value)}")
+        #         print(f"    max: {np.max(value)}")
         
         # Unbatch and convert to np.ndarray.
         outputs = jax.tree.map(lambda x: np.asarray(x[0, ...]), outputs)
@@ -96,11 +98,11 @@ class Policy(BasePolicy):
         # Apply output transforms
         final_outputs = self._output_transform(outputs)
         
-        # Debug: Log final outputs
-        print("Final outputs after transformation:")
-        for key, value in final_outputs.items():
-            if isinstance(value, (np.ndarray, jnp.ndarray)):
-                print(f"  {key}: shape={value.shape}, min={np.min(value)}, max={np.max(value)}")
+        # # Debug: Log final outputs
+        # print("Final outputs after transformation:")
+        # for key, value in final_outputs.items():
+        #     if isinstance(value, (np.ndarray, jnp.ndarray)):
+        #         print(f"  {key}: shape={value.shape}, min={np.min(value)}, max={np.max(value)}")
         
         return final_outputs
 

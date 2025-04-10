@@ -2,7 +2,7 @@
 Author: JihaiZhao jihai518@gmail.com
 Date: 2025-04-04 16:15:52
 LastEditors: JihaiZhao jihai518@gmail.com
-LastEditTime: 2025-04-05 21:09:32
+LastEditTime: 2025-04-08 12:46:54
 FilePath: /pi0_jax/scripts/test.py
 Description: 
 '''
@@ -35,8 +35,9 @@ from openpi.transforms import Group
 # print("Result:", result)
 # print("Actions shape:", result["actions"].shape)
 
-config = _config.get_config("pi0_xarm_dual_fast")
-checkpoint_dir = "/scratch/wty/pi0_jax/checkpoints/pi0_xarm_dual_fast/dual_joint_1_fast/33000"
+config = _config.get_config("pi0_xarm_dual")
+# checkpoint_dir = "/scratch/wty/pi0_jax/checkpoints/pi0_xarm_dual_fast/dual_joint_1_fast/33000"
+checkpoint_dir = "/media/qtus/T7/checkpoints/pi0_jax/abs_pose/27000"
 
 # Create a trained policy.
 policy = _policy_config.create_trained_policy(config, 

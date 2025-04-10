@@ -2,7 +2,7 @@
 Author: JihaiZhao jihai518@gmail.com
 Date: 2025-03-27 18:23:51
 LastEditors: JihaiZhao jihai518@gmail.com
-LastEditTime: 2025-04-06 16:39:43
+LastEditTime: 2025-04-08 14:03:45
 FilePath: /pi0_jax/src/openpi/policies/xarm_dual_policy.py
 Description: 
 '''
@@ -55,8 +55,8 @@ class XarmInputs(transforms.DataTransformFn):
     def __call__(self, data: dict) -> dict:
         # print("\nXarmInputs input keys:", list(data.keys()))
         mask_padding = self.model_type == _model.ModelType.PI0
-        for key, value in data.items():
-            print(f"Key: {key}, Value type: {type(value)}, Value shape: {value.shape if hasattr(value, 'shape') else 'N/A'}")
+        # for key, value in data.items():
+        #     print(f"Key: {key}, Value type: {type(value)}, Value shape: {value.shape if hasattr(value, 'shape') else 'N/A'}")
         # Print state type message only once
         if not object.__getattribute__(self, '_has_printed'):
             print("Using pose to train the model" if self.pose else "Using joint angle to train the model")
