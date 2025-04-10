@@ -50,25 +50,34 @@ class XarmInputs(transforms.DataTransformFn):
     action_dim: int
     model_type: _model.ModelType = _model.ModelType.PI0
     pose: bool = True
+    relative: bool = False
     _has_printed: bool = dataclasses.field(default=False, init=False)
 
     def __call__(self, data: dict) -> dict:
         # print("\nXarmInputs input keys:", list(data.keys()))
         mask_padding = self.model_type == _model.ModelType.PI0
-        for key, value in data.items():
-            print(f"Key: {key}, Value type: {type(value)}, Value shape: {value.shape if hasattr(value, 'shape') else 'N/A'}")
+        # for key, value in data.items():
+        #     print(f"Key: {key}, Value type: {type(value)}, Value shape: {value.shape if hasattr(value, 'shape') else 'N/A'}")
         # Print state type message only once
         if not object.__getattribute__(self, '_has_printed'):
             print("Using pose to train the model" if self.pose else "Using joint angle to train the model")
             object.__setattr__(self, '_has_printed', True)
         
+        if self.pose:
         # Get state from raw inputs using pose data
-        state_components = [
-            data["observation_states_ee_pose_left"],
-            data["observation_states_gripper_position_left"],
-            data["observation_states_ee_pose_right"],
-            data["observation_states_gripper_position_right"]
-        ]
+            state_components = [
+                data["observation_states_ee_pose_left"],
+                data["observation_states_gripper_position_left"],
+                data["observation_states_ee_pose_right"],
+                data["observation_states_gripper_position_right"]
+            ]
+        else:
+            state_components = [
+                data["observation_states_joint_angle_left"][0],
+                data["observation_states_gripper_position_left"],
+                data["observation_states_joint_angle_right"][0],
+                data["observation_states_gripper_position_right"]
+            ]
         state = np.concatenate(state_components)
         state = transforms.pad_to_dim(state, self.action_dim)
 
@@ -93,27 +102,32 @@ class XarmInputs(transforms.DataTransformFn):
         if "prompt" in data:
             inputs["prompt"] = data["prompt"]
 
-        # use pose or joint angle to train the model
         if self.pose:
+            # use pose or joint angle to train the model
             if "action_left" in data:
                 action_left = np.asarray(data["action_left"])
+                # print("action_left shape", action_left.shape)
                 inputs["action_left"] = action_left
 
             if "action_right" in data:
                 action_right = np.asarray(data["action_right"])
+                # print("action_right shape", action_right.shape)
                 inputs["action_right"] = action_right
+            
         else:
-            if "observation_states_joint_angle_left" in data:
-                action_left = np.asarray(data["observation_states_joint_angle_left"])
-                action_left = np.concatenate([action_left, data["observation_states_gripper_position_left"]], axis=-1)
-                print("action_left", action_left)
-                inputs["action_left"] = action_left
+            inputs["action_left"] = np.asarray(data["observation_states_joint_angle_left"])
+            inputs["action_right"] = np.asarray(data["observation_states_joint_angle_right"])
+            
+            # Get the shapes to determine if reshaping is needed
+            left_shape = inputs["action_left"].shape
+            right_shape = inputs["action_right"].shape
 
-            if "observation_states_joint_angle_right" in data:
-                action_right = np.asarray(data["observation_states_joint_angle_right"])
-                action_right = np.concatenate([action_right, data["observation_states_gripper_position_right"]], axis=-1)
-                inputs["action_right"] = action_right
-
+            gripper_left = np.tile(data["observation_states_gripper_position_left"], (left_shape[0], 1))
+            gripper_right = np.tile(data["observation_states_gripper_position_right"], (right_shape[0], 1))
+        
+            # Concatenate along the last dimension
+            inputs["action_left"] = np.concatenate([inputs["action_left"], gripper_left], axis=-1)
+            inputs["action_right"] = np.concatenate([inputs["action_right"], gripper_right], axis=-1)
 
         return inputs
 

@@ -136,9 +136,9 @@ class Normalize(DataTransformFn):
 
     def _normalize(self, x, stats: NormStats):
         # Original normalization is Z-score normalization.
-        return (x - stats.mean) / (stats.std + 1e-6)
+        # return (x - stats.mean) / (stats.std + 1e-6)
         # New normalization is min-max normalization. Normalize to [-1, 1].
-        # return 2.0 * (x - stats.min) / (stats.max - stats.min + 1e-6) - 1.0
+        return 2.0 * (x - stats.min) / (stats.max - stats.min + 1e-6) - 1.0
 
     def _normalize_quantile(self, x, stats: NormStats):
         assert stats.q01 is not None
@@ -170,9 +170,9 @@ class Unnormalize(DataTransformFn):
 
     def _unnormalize(self, x, stats: NormStats):
         # Original unnormalization is Z-score unnormalization.
-        return x * (stats.std + 1e-6) + stats.mean
+        # return x * (stats.std + 1e-6) + stats.mean
         # New unnormalization is min-max unnormalization. Unnormalize from [-1, 1] to [min, max].
-        # return (x + 1.0) / 2.0 * (stats.max - stats.min + 1e-6) + stats.min
+        return (x + 1.0) / 2.0 * (stats.max - stats.min + 1e-6) + stats.min
 
     def _unnormalize_quantile(self, x, stats: NormStats):
         assert stats.q01 is not None
@@ -210,15 +210,27 @@ class DeltaActions(DataTransformFn):
 
     def __call__(self, data: DataDict) -> DataDict:
         # Handle dual arm case
-        if "action_left" in data or "action_right" in data:
-            state, action_left, action_right = data["state"], data["action_left"], data["action_right"]
-            print(f"state: {state.shape}, action_left: {action_left.shape}, action_right: {action_right.shape}")
+        if "action_left" in data and "action_right" in data:
+            state = data["state"]
+            action_left = data["action_left"] 
+            action_right = data["action_right"]
+            
             mask = np.asarray(self.mask)
-            print(f"mask shape: {mask.shape}")
             dims = mask.shape[-1]
-            print(f"dims: {dims}")
-            action_left[..., :dims] -= np.expand_dims(np.where(mask, state[..., :dims], 0), axis=-2)
-            action_right[..., :dims] -= np.expand_dims(np.where(mask, state[..., :dims], 0), axis=-2)
+            
+            # Define state indices here inside the method
+            # Assuming first 10 indices for left arm and next 10 for right arm
+            left_state_indices = slice(0, 10)
+            right_state_indices = slice(10, 20)
+            
+            # Use the correct state portion for each arm
+            left_state = state[..., left_state_indices]
+            right_state = state[..., right_state_indices]
+            
+            # Apply the delta transformation using the correct state for each arm
+            action_left[..., :dims] -= np.expand_dims(np.where(mask, left_state[..., :dims], 0), axis=-2)
+            action_right[..., :dims] -= np.expand_dims(np.where(mask, right_state[..., :dims], 0), axis=-2)
+            
             data["action_left"] = action_left
             data["action_right"] = action_right
 
@@ -228,11 +240,8 @@ class DeltaActions(DataTransformFn):
             return data
 
         state, actions = data["state"], data["actions"]
-        print(f"state: {state.shape}, actions: {actions.shape}")
         mask = np.asarray(self.mask)
-        print(f"mask shape: {mask.shape}")
         dims = mask.shape[-1]
-        print(f"dims: {dims}")
         actions[..., :dims] -= np.expand_dims(np.where(mask, state[..., :dims], 0), axis=-2)
         data["actions"] = actions
 
@@ -249,14 +258,26 @@ class AbsoluteActions(DataTransformFn):
     mask: Sequence[bool] | None
 
     def __call__(self, data: DataDict) -> DataDict:
-        if "action_left" in data or "action_right" in data:
-            state, action_left, action_right = data["state"], data["action_left"], data["action_right"]
-            print(f"state: {state.shape}, action_left: {action_left.shape}, action_right: {action_right.shape}")
+        if "action_left" in data and "action_right" in data:
+            state = data["state"]
+            action_left = data["action_left"]
+            action_right = data["action_right"]
+            
             mask = np.asarray(self.mask)
-            print(f"mask shape: {mask.shape}")
             dims = mask.shape[-1]
-            action_left[..., :dims] += np.expand_dims(np.where(mask, state[..., :dims], 0), axis=-2)
-            action_right[..., :dims] += np.expand_dims(np.where(mask, state[..., :dims], 0), axis=-2)
+            
+            # Define state indices here inside the method
+            left_state_indices = slice(0, 10)
+            right_state_indices = slice(10, 20)
+            
+            # Use the correct state portion for each arm
+            left_state = state[..., left_state_indices]
+            right_state = state[..., right_state_indices]
+            
+            # Apply the absolute transformation using the correct state for each arm
+            action_left[..., :dims] += np.expand_dims(np.where(mask, left_state[..., :dims], 0), axis=-2)
+            action_right[..., :dims] += np.expand_dims(np.where(mask, right_state[..., :dims], 0), axis=-2)
+            
             data["action_left"] = action_left
             data["action_right"] = action_right
 

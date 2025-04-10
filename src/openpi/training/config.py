@@ -61,9 +61,11 @@ class AssetsConfig:
     # different robot platforms.
     asset_id: str | None = None
 
+    # This help to find the correct path to the norm stats
     # If true, will use pose as action space for training. If false, will use joint angles.
     pose: bool | None = True
-
+    # If true, will use relative pose as action space for training. If false, will use absolute pose.
+    relative: bool | None = False
 
 @dataclasses.dataclass(frozen=True)
 class DataConfig:
@@ -91,6 +93,12 @@ class DataConfig:
     # LeRobot dataset is using different keys to represent the action.
     action_sequence_keys: Sequence[str] = ("actions",)
 
+    # Added by Jihai
+    # When use joint action space, we need to use the joint information for both action and observation.
+    # Therefore, for using as action it needs to be expanded to the action_horizon length. (did in original code)
+    # For using as observation, it needs to maintain the original length.
+    original_action_key: str | None = None
+
     # If true, will use the LeRobot dataset task to define the prompt.
     prompt_from_task: bool = False
 
@@ -104,6 +112,8 @@ class DataConfig:
 
     # If true, will use pose as action space for training. If false, will use joint angles.
     pose: bool | None = True
+    # If true, will use relative pose as action space for training. If false, will use absolute pose.
+    relative: bool | None = False
 
 class GroupFactory(Protocol):
     def __call__(self, model_config: _model.BaseModelConfig) -> _transforms.Group:
@@ -164,15 +174,16 @@ class DataConfigFactory(abc.ABC):
     def create_base_config(self, assets_dirs: pathlib.Path) -> DataConfig:
         repo_id = self.repo_id if self.repo_id is not tyro.MISSING else None
         asset_id = self.assets.asset_id or repo_id
-        pose = self.assets.pose
+        pose = self.assets.pose 
+        relative = self.assets.relative
         return dataclasses.replace(
             self.base_config or DataConfig(),
             repo_id=repo_id,
             asset_id=asset_id,
-            norm_stats=self._load_norm_stats(epath.Path(self.assets.assets_dir or assets_dirs), asset_id, pose),
+            norm_stats=self._load_norm_stats(epath.Path(self.assets.assets_dir or assets_dirs), asset_id, pose, relative),
         )
 
-    def _load_norm_stats(self, assets_dir: epath.Path, asset_id: str | None, pose: bool) -> dict[str, _transforms.NormStats] | None:
+    def _load_norm_stats(self, assets_dir: epath.Path, asset_id: str | None, pose: bool, relative: bool) -> dict[str, _transforms.NormStats] | None:
         if asset_id is None:
             return None
         try:
@@ -342,9 +353,14 @@ class LeRobotLiberoDataConfig(DataConfigFactory):
 class LeRobotXARMDualDataConfig(DataConfigFactory):
     """Config for xarm dataset."""
     default_prompt: str | None = None
-    action_sequence_keys: Sequence[str] = ("action_left", "action_right")
+    # action_sequence_keys: Sequence[str] = ("action_left", "action_right")
+    action_sequence_keys: Sequence[str] = ("observation_states_joint_angle_left", "observation_states_joint_angle_right")
+    original_action_key: Sequence[str] = ("observation_states_joint_angle_left", "observation_states_joint_angle_right")
+
     # action_sequence_keys: Sequence[str] = ("actions",)
     max_episodes: int | None = None
+    pose: bool = True
+    relative: bool = False
 
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
@@ -353,8 +369,8 @@ class LeRobotXARMDualDataConfig(DataConfigFactory):
             inputs=[
                 _transforms.RepackTransform({
                     # Keep original columns
-                    "action_left": "action_left",
-                    "action_right": "action_right",
+                    "action_left": "observation_states_joint_angle_left",
+                    "action_right": "observation_states_joint_angle_right",
                     # Keep observation columns
                     "observation_states_joint_angle_left": "observation_states_joint_angle_left",
                     "observation_states_gripper_position_left": "observation_states_gripper_position_left",
@@ -370,19 +386,22 @@ class LeRobotXARMDualDataConfig(DataConfigFactory):
                 })
             ]
         )
-
         # Then do data transforms
         data_transforms = _transforms.Group(
             inputs=[xarm_dual_policy.XarmInputs(action_dim=model_config.action_dim, model_type=model_config.model_type, pose=model_config.pose)],
             outputs=[xarm_dual_policy.XarmOutputs()],
         )
-        # # in here action left and right are not concatenated yet
-        # delta_action_mask = _transforms.make_bool_mask(9, -1)
-        # delta_action_mask = _transforms.make_bool_mask(9, -1)
-        # data_transforms = data_transforms.push(
-        #     inputs=[_transforms.DeltaActions(delta_action_mask)],
-        #     outputs=[_transforms.AbsoluteActions(delta_action_mask)],
-        # )
+        if self.relative:
+            # in here action left and right are not concatenated yet and state is concatenated
+            delta_action_mask = _transforms.make_bool_mask(9, -1)
+            data_transforms = data_transforms.push(
+                inputs=[_transforms.DeltaActions(
+                    delta_action_mask,
+                )],
+                outputs=[_transforms.AbsoluteActions(
+                    delta_action_mask
+                )],
+            )
 
         # Model transforms for tokenizing prompts etc.
         model_transforms = ModelTransformFactory(default_prompt=self.default_prompt)(model_config)
@@ -398,12 +417,15 @@ class LeRobotXARMDualDataConfig(DataConfigFactory):
             prompt_from_task=base_config.prompt_from_task,
         )
 
-    def _load_norm_stats(self, assets_dir: epath.Path, asset_id: str | None, pose: bool) -> dict[str, _transforms.NormStats] | None:
+    def _load_norm_stats(self, assets_dir: epath.Path, asset_id: str | None, pose: bool, relative: bool) -> dict[str, _transforms.NormStats] | None:
         if asset_id is None:
             return None
         try:
             if pose:
-                data_assets_dir = str(assets_dir / asset_id / "pose")
+                if relative:
+                    data_assets_dir = str(assets_dir / asset_id / "rel_pose")
+                else:
+                    data_assets_dir = str(assets_dir / asset_id / "pose")
             else:
                 data_assets_dir = str(assets_dir / asset_id / "joint")
             norm_stats = _normalize.load(_download.maybe_download(data_assets_dir))
@@ -784,14 +806,19 @@ _CONFIGS = [
     #
     TrainConfig(
         name="pi0_xarm_dual",
-        model=pi0.Pi0Config(pose=True),
+        model=pi0.Pi0Config(pose=False),
         data=LeRobotXARMDualDataConfig(
             repo_id="pour_1000",
             assets=AssetsConfig(
                 assets_dir="/scratch/jihai/",
                 asset_id="pour_1000",
-                pose=True,
+                # assist to find the correct path to the norm stats
+                pose=False,
+                relative=False,
             ),
+            # data config to do abs to rel action transform
+            pose=False,
+            relative=False,
             default_prompt=None,
             base_config=DataConfig(
                 local_files_only=True,
@@ -799,10 +826,40 @@ _CONFIGS = [
                 filter_fn=lambda x: True,  # Custom filter function
             ),
         ),
-        keep_period=3000,
-        plot_interval=300,
+        keep_period=4000,
+        plot_interval=400,
         weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
-        num_train_steps=30_000,
+        num_train_steps=100_000,
+    ),
+    #
+    # Fine-tuning XArm Dual Lora configs.
+    #
+    TrainConfig(
+        name="pi0_xarm_dual_lora",
+        model=pi0.Pi0Config(pose=True, paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora"),
+        data=LeRobotXARMDualDataConfig(
+            repo_id="pour_1000",
+            assets=AssetsConfig(
+                assets_dir="/scratch/jihai/",
+                asset_id="pour_1000",
+            ),
+            pose=True,
+            default_prompt=None,
+            base_config=DataConfig(
+                local_files_only=True,
+                prompt_from_task=True,
+                filter_fn=lambda x: True,  # Custom filter function
+            ),
+        ),
+        keep_period=4000,
+        plot_interval=400,
+        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
+        num_train_steps=100_000,
+        freeze_filter=pi0.Pi0Config(
+            paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora"
+        ).get_freeze_filter(),
+        # Turn off EMA for LoRA finetuning.
+        ema_decay=None,
     ),
     #
     # Fine-tuning XArm Dual configs - Fast.
