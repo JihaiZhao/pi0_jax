@@ -359,8 +359,8 @@ def main(config: _config.TrainConfig):
                         observation=plot_observation,  # Use smaller batch
                         num_steps=1
                     )
-                    print(f"Predicted actions shape: {pred_actions.shape}")
-                    print(f"Predicted actions: {pred_actions[0]}")
+                    # print(f"Predicted actions shape: {pred_actions.shape}")
+                    # print(f"Predicted actions: {pred_actions[0]}")
 
                     gt_actions_np = jax.device_get(plot_actions)
                     pred_actions_np = jax.device_get(pred_actions)

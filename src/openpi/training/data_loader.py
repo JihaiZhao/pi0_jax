@@ -128,8 +128,8 @@ def transform_dataset(dataset: Dataset, data_config: _config.DataConfig, *, skip
             )
         norm_stats = data_config.norm_stats
     
-    for key in norm_stats:
-        print(f"Normalization stats for {key}: {norm_stats[key]}")
+    # Print the available normalization stats
+    print(f"Available normalization stats keys: {list(norm_stats.keys())}")
 
     transformed = TransformedDataset(
         dataset,
@@ -169,17 +169,54 @@ def create_data_loader(
     """
     data_config = config.data.create(config.assets_dirs, config.model)
     
+    print(f"Creating dataset with action_sequence_keys: {data_config.action_sequence_keys}")
     dataset = create_dataset(data_config, config.model)
     
     try:
+        print("Transforming dataset...")
         dataset = transform_dataset(dataset, data_config, skip_norm_stats=skip_norm_stats)
-        print("dataset keys: ", dataset[0].keys())
-        print("dataset[0]['state'] max", dataset[0]['state'].max())
-        print("dataset[0]['state'] min", dataset[0]['state'].min())
-        print("dataset[0]['image'] ", dataset[0]['image'].keys())
-        print("dataset[0]['image']['base_0_rgb'] ", dataset[0]['image']['base_0_rgb'].max())
-        print("dataset[0]['image']['left_wrist_0_rgb'] ", dataset[0]['image']['left_wrist_0_rgb'].max())
-        print("dataset[0]['image']['right_wrist_0_rgb'] ", dataset[0]['image']['right_wrist_0_rgb'].max())
+        
+        # Print detailed diagnostic information
+        print("\n===== DATASET DIAGNOSTIC INFORMATION =====")
+        print(f"Available keys: {list(dataset[0].keys())}")
+        
+        # Check state
+        if 'state' in dataset[0]:
+            print(f"\nState info:")
+            print(f"  Shape: {dataset[0]['state'].shape}")
+            print(f"  Min/Max: {dataset[0]['state'].min():.4f} / {dataset[0]['state'].max():.4f}")
+        
+        # Check images
+        if 'image' in dataset[0]:
+            print(f"\nImage info:")
+            for img_key, img in dataset[0]['image'].items():
+                print(f"  {img_key}: Shape={img.shape}, Min/Max={img.min():.4f}/{img.max():.4f}")
+        
+        # Check action data
+        print("\nAction data info:")
+        for action_key in ['action_left', 'action_right']:
+            if action_key in dataset[0]:
+                print(f"  {action_key}:")
+                print(f"    Shape: {dataset[0][action_key].shape}")
+                print(f"    Min/Max: {dataset[0][action_key].min():.4f} / {dataset[0][action_key].max():.4f}")
+                
+                # For time-sequence data, show first and last frame
+                if dataset[0][action_key].ndim > 1:
+                    print(f"    First frame shape: {dataset[0][action_key][0].shape}")
+                    print(f"    Last frame shape: {dataset[0][action_key][-1].shape}")
+        
+        # Check observation data
+        print("\nObservation data info:")
+        obs_keys = ['observation_states_joint_angle_left', 'observation_states_joint_angle_right', 
+                   'observation_states_gripper_position_left', 'observation_states_gripper_position_right']
+        for obs_key in obs_keys:
+            if obs_key in dataset[0]:
+                print(f"  {obs_key}:")
+                print(f"    Shape: {dataset[0][obs_key].shape}")
+                print(f"    Min/Max: {dataset[0][obs_key].min():.4f} / {dataset[0][obs_key].max():.4f}")
+        
+        print("===== END DIAGNOSTIC INFORMATION =====\n")
+        
         print("\nTransform successful")
     except Exception as e:
         print("\nError during transform:", str(e))
